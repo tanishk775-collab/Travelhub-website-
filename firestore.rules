@@ -1,0 +1,102 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Validation Helpers ---
+    
+    function isValidPackage(data) {
+      return data.keys().hasAll(['name', 'destination', 'price', 'description', 'category'])
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 200
+        && data.price is number && data.price >= 0
+        && data.description is string && data.description.size() <= 2000
+        && data.category in ['Luxury', 'Adventure', 'Beach', 'Cultural', 'Nature'];
+    }
+
+    function isValidBooking(data) {
+      return data.keys().hasAll(['userId', 'packageId', 'packageName', 'startDate', 'endDate', 'guests', 'totalAmount', 'status', 'createdAt', 'hasInsurance', 'insuranceCost'])
+        && data.userId == request.auth.uid
+        && data.guests is int && data.guests > 0 && data.guests <= 20
+        && data.totalAmount is number && data.totalAmount >= 0
+        && data.status in ['pending', 'confirmed', 'cancelled']
+        && data.createdAt == request.time
+        && data.hasInsurance is bool
+        && data.insuranceCost is number;
+    }
+
+    function isValidReview(data) {
+      return data.keys().hasAll(['userId', 'userName', 'packageId', 'rating', 'comment', 'createdAt'])
+        && data.userId == request.auth.uid
+        && data.rating is int && data.rating >= 1 && data.rating <= 5
+        && data.comment is string && data.comment.size() <= 1000
+        && data.createdAt == request.time;
+    }
+
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['name', 'email', 'preferences'])
+        && data.name is string && data.name.size() > 0
+        && data.email is string && data.email.size() > 0
+        && data.preferences is list && data.preferences.size() <= 10;
+    }
+
+    // --- Collection Routes ---
+
+    // 1. Packages (Famous Destinations)
+    match /packages/{packageId} {
+      allow read: if true;
+      // For demo purposes, we'll assume packages are seeded or managed by a system.
+      // We block client-side writes to packages to maintain integrity.
+      allow create, update, delete: if false; 
+
+      // 2. Reviews Subcollection
+      match /reviews/{reviewId} {
+        allow read: if true;
+        allow create: if isSignedIn() && isValidReview(incoming());
+        allow update: if isOwner(existing().userId) && isValidReview(incoming())
+          && incoming().diff(existing()).affectedKeys().hasOnly(['comment', 'rating']);
+        allow delete: if isOwner(existing().userId);
+      }
+    }
+
+    // 3. Bookings
+    match /bookings/{bookingId} {
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow get: if isOwner(resource.data.userId);
+      allow create: if isSignedIn() && isValidBooking(incoming());
+      allow update: if isOwner(existing().userId) && isValidBooking(incoming())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status']); // User can cancel
+      allow delete: if false; // Prefer status 'cancelled' over deletion
+    }
+
+    // 4. User Profiles
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow create, update: if isOwner(userId) && isValidUserProfile(incoming());
+    }
+  }
+}

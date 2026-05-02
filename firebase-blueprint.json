@@ -1,0 +1,84 @@
+{
+  "entities": {
+    "Package": {
+      "title": "Travel Package",
+      "description": "A curated travel destination package with pricing and details.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Name of the package" },
+        "destination": { "type": "string", "description": "City or Region" },
+        "price": { "type": "number", "description": "Total price per person" },
+        "description": { "type": "string", "description": "Detailed description of the experience" },
+        "images": { "type": "array", "items": { "type": "string" }, "description": "URLs of destination images" },
+        "category": { "type": "string", "enum": ["Luxury", "Adventure", "Beach", "Cultural", "Nature"], "description": "Primary travel style" },
+        "rating": { "type": "number", "description": "Average rating (1-5)" },
+        "totalReviews": { "type": "number", "description": "Number of reviews received" },
+        "tags": { "type": "array", "items": { "type": "string" }, "description": "Searchable keywords" }
+      },
+      "required": ["name", "destination", "price", "description", "category"]
+    },
+    "Booking": {
+      "title": "Booking Record",
+      "description": "A record of a user's reservation for a package.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "UID of the booking user" },
+        "packageId": { "type": "string", "description": "ID of the reserved package" },
+        "packageName": { "type": "string", "description": "Name of the package at time of booking" },
+        "startDate": { "type": "string", "format": "date", "description": "Arrival date" },
+        "endDate": { "type": "string", "format": "date", "description": "Departure date" },
+        "guests": { "type": "integer", "description": "Number of people" },
+        "totalAmount": { "type": "number", "description": "Calculated total price" },
+        "status": { "type": "string", "enum": ["pending", "confirmed", "cancelled"], "description": "Current status of the booking" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the booking was made" },
+        "hasInsurance": { "type": "boolean", "description": "Whether travel insurance was purchased" },
+        "insuranceCost": { "type": "number", "description": "The cost of the travel insurance" }
+      },
+      "required": ["userId", "packageId", "startDate", "endDate", "guests", "totalAmount", "status"]
+    },
+    "Review": {
+      "title": "User Review",
+      "description": "Feedback provided by a user for a specific package.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "UID of the reviewer" },
+        "userName": { "type": "string", "description": "DisplayName of the reviewer" },
+        "packageId": { "type": "string", "description": "ID of the package reviewed" },
+        "rating": { "type": "integer", "description": "Rating score (1-5)" },
+        "comment": { "type": "string", "description": "Written feedback" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the review was posted" }
+      },
+      "required": ["userId", "packageId", "rating", "comment", "createdAt"]
+    },
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Stored preferences and metadata for a registered user.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "User full name" },
+        "email": { "type": "string", "format": "email", "description": "User email address" },
+        "preferences": { "type": "array", "items": { "type": "string" }, "description": "Interested categories for recommendations" },
+        "savedPackages": { "type": "array", "items": { "type": "string" }, "description": "IDs of packages saved to wishlist" }
+      },
+      "required": ["name", "email", "preferences"]
+    }
+  },
+  "firestore": {
+    "/packages/{packageId}": {
+      "schema": "Package",
+      "description": "Publicly viewable travel packages."
+    },
+    "/packages/{packageId}/reviews/{reviewId}": {
+      "schema": "Review",
+      "description": "Reviews for a specific package."
+    },
+    "/bookings/{bookingId}": {
+      "schema": "Booking",
+      "description": "User-specific booking records."
+    },
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Personal user profiles and preferences."
+    }
+  }
+}
